@@ -7,9 +7,12 @@ Project End:
 """
 
 from tkinter import *
+import tkinter.filedialog as fd 
+import tkinter.messagebox as mb
+import os
+
 
 PROGRAM_NAME = "KodePad"
-file_name = None
 
 class App(Tk):
     def __init__(self):
@@ -28,6 +31,7 @@ class App(Tk):
         self.show_cursor_info = IntVar()
         self.highlight_line = IntVar()
         self.theme_choice = StringVar()
+        self.file_name = None
         self.color_schemes = {
             'Default': '#000000.#FFFFFF',
             'Greygarious': '#83406A.#D1D4D1',
@@ -37,6 +41,7 @@ class App(Tk):
             'Olive Green': '#D1E7E0.#5B8340',
             'Night Mode': '#FFFFFF.#000000',
         }
+        self.protocol("WM_DELETE_WINDOW", self.exit_editor)
         self.init_gui()
 
     def init_gui(self):
@@ -51,10 +56,10 @@ class App(Tk):
         # File Menu
         self.file_menu = Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="File", menu=self.file_menu)
-        self.file_menu.add_command(label="New", accelerator="Ctrl+N", compound="left", image=self.new_file_icon, underline=0)
-        self.file_menu.add_command(label="Open", accelerator="Ctrl+O", compound="left", image=self.open_file_icon, underline=0)
-        self.file_menu.add_command(label="Save", accelerator="Ctrl+S", compound="left", image=self.save_file_icon, underline=0)
-        self.file_menu.add_command(label="Save as", accelerator="Ctrl+Shift+S")
+        self.file_menu.add_command(label="New", accelerator="Ctrl+N", compound="left", image=self.new_file_icon, underline=0, command=self.new_file)
+        self.file_menu.add_command(label="Open", accelerator="Ctrl+O", compound="left", image=self.open_file_icon, underline=0, command=self.open_file)
+        self.file_menu.add_command(label="Save", accelerator="Ctrl+S", compound="left", image=self.save_file_icon, underline=0, command=self.save)
+        self.file_menu.add_command(label="Save as", accelerator="Ctrl+Shift+S", command="self.save_as")
 
         self.file_menu.add_separator()
 
@@ -97,8 +102,8 @@ class App(Tk):
         # About Menu
         self.about_menu = Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="About", menu=self.about_menu)
-        self.about_menu.add_command(label="About")
-        self.about_menu.add_command(label="Help")
+        self.about_menu.add_command(label="About Creator", command=self.display_about_creator_messagebox)
+        self.about_menu.add_command(label="About App", command=self.display_about_app_messagebox)
 
         # Place All The Menus
         self.config(menu=self.menu_bar)
@@ -149,41 +154,90 @@ class App(Tk):
         self.search_toplevel.transient(self)
         self.search_toplevel.resizable(False, False)
         Label(self.search_toplevel, text="Find All: ").grid(row=0, column=0, sticky="e")
-        search_entry_widget = Entry(self.search_toplevel, width=25)
-        search_entry_widget.grid(row=0, column=1, padx=2, pady=2, sticky="we")
-        search_entry_widget.focus_set()
-        self.ignore_case_value = IntVar
+        self.search_entry_widget = Entry(self.search_toplevel, width=25)
+        self.search_entry_widget.grid(row=0, column=1, padx=2, pady=2, sticky="we")
+        self.search_entry_widget.focus_set()
+        self.ignore_case_value = IntVar()
         Checkbutton(self.search_toplevel, text="Ignore case value", variable=self.ignore_case_value).grid(row=1, column=1, sticky=E, padx=2, pady=2)
-        Button(self.search_toplevel, text="Find", underline=0, command=lambda: self.search_output(search_entry_widget.get(), self.ignore_case_value.get(), self.content_text, self.search_toplevel, self.search_entry_widget)).grid(row=2, column=2, sticky="e" + "w", padx=2, pady=2)
+        Button(self.search_toplevel, text="Find", underline=0, command=lambda: self.search_output(self.search_entry_widget.get(), self.ignore_case_value.get(), self.content_text, self.search_toplevel, self.search_entry_widget)).grid(row=2, column=2, sticky="e" + "w", padx=2, pady=2)
         def close_search_widow():
-            self.content_text.remove_tag(MATCH, 1.0, END)
+            self.content_text.tag_remove("MATCH", 1.0, END)
             self.search_toplevel.destroy()
             self.search_toplevel.protocol(WM_DELETE_WINDOW, close_search_widow)
             return "break"
 
-    def search_output(needle, if_ignore_case, content_text, search_toplevel, search_box):
-        content_text.remove_tag(MATCH, 1.0, END)
+    def search_output(self, needle, if_ignore_case, content_text, search_toplevel, search_box):
+        content_text.tag_remove("MATCH", 1.0, END)
         self.matches_found = 0
         if needle:
-            self.start_pos = 0
+            self.start_pos = "1.0"
             while True:
                 self.start_pos = content_text.search(needle, self.start_pos, nocase=if_ignore_case, stopindex=END)
                 if not self.start_pos:
                     break
-                self.end_pos = f"{start_pos} + {len(needle)}c"
-                content_text.tag_add(MATCH, self.start_pos, self.end_pos)
+                self.end_pos = f"{self.start_pos} + {len(needle)}c"
+                content_text.tag_add("MATCH", self.start_pos, self.end_pos)
                 self.matches_found += 1
                 self.start_pos = self.end_pos
-            content_text.tag_config(MATCH, foreground="Blue", background="Green")
+            content_text.tag_config("MATCH", foreground="Blue", background="Green")
         search_box.focus_set()
-        search_toplevel.tilte(f"{self.matches_found} matches found")
+        search_toplevel.title(f"{self.matches_found} matches found")
+
+    def open_file(self, event=None):
+        self.input_file_name = fd.askopenfilename(defaultextension=".txt", filetypes=[("All Files", "*.*"), ("Text Documents", "*.*")])
+        if self.input_file_name:
+            self.file_name = self.input_file_name
+            self.title(f"{os.path.basename(self.file_name)} - {PROGRAM_NAME}")
+            self.content_text.delete(1.0, END)
+            with open(self.file_name) as self._file:
+                self.content_text.insert(1.0, self._file.read())
+
+    def save(self, event=None):
+        if not self.file_name:
+            self.save_as()
+        else:
+            self.write_to_file(self.file_name)
+        return "break"
+
+    def save_as(self, event=None):
+        self.input_file_name = fd.asksaveasfilename(defaultextension=".txt", filetypes=[("All Types", "*.*"), ("Text Files", "*.txt")])
+        if self.input_file_name:
+            self.file_name = self.input_file_name
+            self.write_to_file(self.file_name)
+            self.title(f"{os.path.basename(self.file_name)} - {PROGRAM_NAME}")
+        return "break"
+
+    def write_to_file(self, file_name):
+        try:
+            self.content = self.content_text.get(1.0, END)
+            with open(file_name, "w") as self.the_file:
+                self.the_file.write(self.content)
+        except IOError:
+            pass
+
+    def new_file(self, event=None):
+        self.title(f"Untitled - {PROGRAM_NAME}")
+        self.file_name = None
+        content_text.delete(1.0, END)
+
+    def display_about_creator_messagebox(self, event=None):
+        mb.showinfo("About", "All the contents in this app is created by Kaushal Rijal")
+
+    def display_about_app_messagebox(self, event=None):
+        mb.showinfo("About App", "KodePad \n version 2.0")
+
+    def exit_editor(self, event=None):
+        if mb.askokcancel("Exit", "Are you sure to exit?"):
+            self.destroy()
 
     # Keyboard Bindings
     def bind_keys(self):
-        self.content_text.bind("<Control-a>", self.select_all)
-        self.content_text.bind("<Control-A", self.select_all)
-        self.content_text.bind("<Control-f", self.find_text)
-        self.content_text.bind("<Control-F", self.find_text)
+        self.content_text.bind('<Control-f>', self.find_text)
+        self.content_text.bind('<Control-F>', self.find_text)
+        self.content_text.bind('<Control-A>', self.select_all)
+        self.content_text.bind('<Control-a>', self.select_all)
+        self.content_text.bind('<Control-y>', self.redo)
+        self.content_text.bind('<Control-Y>', self.redo)
 
 
 if __name__ == "__main__":
