@@ -19,6 +19,7 @@ class App(Tk):
         super().__init__()
         self.title(PROGRAM_NAME)
         self.geometry("800x500")
+        self.iconbitmap("KodePad.ico")
         self.new_file_icon = PhotoImage(file='icons/new_file.gif')
         self.open_file_icon = PhotoImage(file='icons/open_file.gif')
         self.save_file_icon = PhotoImage(file='icons/save.gif')
